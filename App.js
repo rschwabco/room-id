@@ -2,7 +2,6 @@ import { Camera, CameraType } from "expo-camera";
 import { useState, useEffect, useRef } from "react";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import io from "socket.io-client";
-import LZString from "lz-string";
 import { manipulateAsync, FlipType, SaveFormat } from "expo-image-manipulator";
 
 export default function App() {
@@ -11,9 +10,12 @@ export default function App() {
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [hasConnection, setConnection] = useState(true);
-  const ENDPOINT = "https://giant-shrimps-do-97-113-152-235.loca.lt";
+  const ENDPOINT = "https://public-deer-start-97-113-152-235.loca.lt";
+  const interval = 2000;
 
+  let intervalId = useRef(null);
   let socket = useRef(null);
+  const cameraRef = useRef(null);
 
   useEffect(
     function didMount() {
@@ -24,10 +26,6 @@ export default function App() {
       socket.current.io.on("open", () => setConnection(true));
       socket.current.io.on("close", () => setConnection(false));
 
-      // socket.on("time-msg", (data) => {
-      //   setTime(new Date(data.time).toString());
-      // });
-
       return function didUnmount() {
         // socket.current.disconnect();
         // socket.current.removeAllListeners();
@@ -35,6 +33,21 @@ export default function App() {
     },
     [ENDPOINT]
   );
+
+  useEffect(() => {
+    console.log("recording", recording);
+    if (!cameraReady) {
+      return;
+    }
+    if (recording && !intervalId.current) {
+      intervalId.current = setInterval(takePicture, interval);
+    } else {
+      if (!recording && intervalId.current) {
+        console.log("stopped", recording, intervalId.current);
+        clearInterval(intervalId.current);
+      }
+    }
+  }, [recording]);
 
   if (!permission) {
     // Camera permissions are still loading
@@ -57,7 +70,7 @@ export default function App() {
     if (!cameraReady) {
       return;
     }
-    const pic = await this.camera.takePictureAsync({
+    const pic = await cameraRef.current?.takePictureAsync({
       base64: true,
     });
     const resizedPic = await manipulateAsync(
@@ -75,15 +88,8 @@ export default function App() {
       });
   }
 
-  // a function that will take a picture every 3 seconds
-
-  async function takePicRecursively() {
-    if (!cameraReady) {
-      return;
-    }
-    const pic = await this.camera.takePictureAsync();
-    console.log(pic.uri);
-    setTimeout(takePicRecursively, 3000);
+  function toggleRecording() {
+    setRecording(!recording);
   }
 
   function toggleCameraType() {
@@ -108,19 +114,14 @@ export default function App() {
           style={styles.camera}
           type={type}
           onCameraReady={() => setCameraReady(true)}
-          ref={(ref) => {
-            this.camera = ref;
-          }}
+          ref={cameraRef}
         >
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.button}
-              onPress={() => takePicture()}
+              onPress={() => toggleRecording()}
             >
               <Text style={styles.text}>Rec</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={toggleCameraType}>
-              <Text style={styles.text}>Flip Camera</Text>
             </TouchableOpacity>
           </View>
         </Camera>
