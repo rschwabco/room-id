@@ -2,6 +2,8 @@ import { Camera, CameraType } from "expo-camera";
 import { useState, useEffect, useRef } from "react";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import io from "socket.io-client";
+import LZString from "lz-string";
+import { manipulateAsync, FlipType, SaveFormat } from "expo-image-manipulator";
 
 export default function App() {
   const [type, setType] = useState(CameraType.back);
@@ -9,7 +11,7 @@ export default function App() {
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [hasConnection, setConnection] = useState(true);
-  const ENDPOINT = "https://old-showers-sort-97-113-152-235.loca.lt";
+  const ENDPOINT = "https://giant-shrimps-do-97-113-152-235.loca.lt";
 
   let socket = useRef(null);
 
@@ -58,11 +60,18 @@ export default function App() {
     const pic = await this.camera.takePictureAsync({
       base64: true,
     });
+    const resizedPic = await manipulateAsync(
+      pic.uri,
+      [{ resize: { width: pic.width / 10, height: pic.height / 10 } }],
+      { compress: 1, format: SaveFormat.JPEG, base64: true }
+    );
+
     hasConnection &&
       socket.current.emit("picture", {
-        data: pic.base64,
-        height: pic.height,
-        width: pic.width,
+        uri: pic.uri,
+        data: resizedPic.base64,
+        height: resizedPic.height,
+        width: resizedPic.width,
       });
   }
 

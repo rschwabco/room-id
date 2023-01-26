@@ -13,10 +13,13 @@
     "expo-av": "~13.0.2",
     "expo-camera": "~13.1.0",
     "expo-status-bar": "~1.4.2",
+    "lz-string": "^1.4.4",
     "react": "18.1.0",
     "react-native": "0.70.5",
     "react-native-vision-camera": "^2.15.2",
-    "socket.io-client": "^4.5.4"
+    "sharp": "^0.31.3",
+    "socket.io-client": "^4.5.4",
+    "expo-image-manipulator": "~11.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9"
