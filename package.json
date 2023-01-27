@@ -9,17 +9,24 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@rneui/base": "^4.0.0-rc.7",
+    "@rneui/themed": "^4.0.0-rc.7",
+    "events": "^3.3.0",
     "expo": "~47.0.12",
     "expo-av": "~13.0.2",
     "expo-camera": "~13.1.0",
+    "expo-image-manipulator": "~11.0.0",
     "expo-status-bar": "~1.4.2",
+    "fs": "^0.0.1-security",
+    "localtunnel": "^2.0.2",
     "lz-string": "^1.4.4",
     "react": "18.1.0",
     "react-native": "0.70.5",
     "react-native-vision-camera": "^2.15.2",
     "sharp": "^0.31.3",
     "socket.io-client": "^4.5.4",
-    "expo-image-manipulator": "~11.0.0"
+    "tasktimer": "^3.0.0",
+    "url": "^0.11.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9"
