@@ -21,7 +21,7 @@ export default function App() {
   const [recording, setRecording] = useState(false);
   const [hasConnection, setConnection] = useState(false);
   const [detectedLabel, setDetectedLabel] = useState(null);
-  const ENDPOINT = "https://neat-tips-give-97-113-152-235.loca.lt";
+  const ENDPOINT = "http://192.168.0.6:8080";
   const interval = 2000;
   const [label, setLabel] = useState(null);
   const [training, setTraining] = useState(false);
@@ -145,15 +145,6 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {/* {!hasConnection && (
-        <>
-          <Text style={styles.paragraph}>Connecting to {ENDPOINT}...</Text>
-          <Text style={styles.footnote}>
-            Make sure the backend is started and reachable
-          </Text>
-        </>
-      )} */}
-
       {
         <Camera
           style={styles.camera}
@@ -172,7 +163,13 @@ export default function App() {
             )}
           </View>
           <Text style={styles.detectedLabel}>
-            {hasConnection ? (detectedLabel ? detectedLabel : "Unknown") : ""}
+            {hasConnection
+              ? detectedLabel
+                ? detectedLabel
+                : training
+                ? "Training"
+                : "Unknown"
+              : ""}
           </Text>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
