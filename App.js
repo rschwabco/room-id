@@ -11,17 +11,15 @@ import {
 import { manipulateAsync, FlipType, SaveFormat } from "expo-image-manipulator";
 import IconButton from "./components/IconButton";
 import { Switch } from "@rneui/themed";
-import * as dotenv from "dotenv";
-dotenv.config();
+import { ENDPOINT } from "@env";
 
 export default function App() {
+  console.log("ENDPOINT", ENDPOINT);
   const [type, setType] = useState(CameraType.back);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [detectedLabel, setDetectedLabel] = useState(null);
-  // const ENDPOINT = "http://192.168.86.250:8080";
-  const ENDPOINT = process.env.ENDPOINT;
   const interval = 2000;
   const [label, setLabel] = useState(null);
   const [training, setTraining] = useState(false);
@@ -30,7 +28,6 @@ export default function App() {
   const cameraRef = useRef(null);
 
   useEffect(() => {
-    // console.log("intervalId", intervalId);
     if (!cameraReady) {
       console.log("camera not ready");
       return;
