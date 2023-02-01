@@ -8,59 +8,29 @@ import {
   View,
   TextInput,
 } from "react-native";
-import io from "socket.io-client";
 import { manipulateAsync, FlipType, SaveFormat } from "expo-image-manipulator";
 import IconButton from "./components/IconButton";
 import { Switch } from "@rneui/themed";
-import { TaskTimer } from "tasktimer";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 export default function App() {
   const [type, setType] = useState(CameraType.back);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [hasConnection, setConnection] = useState(false);
   const [detectedLabel, setDetectedLabel] = useState(null);
-  const ENDPOINT = "http://192.168.0.6:8080";
+  // const ENDPOINT = "http://192.168.86.250:8080";
+  const ENDPOINT = process.env.ENDPOINT;
   const interval = 2000;
   const [label, setLabel] = useState(null);
   const [training, setTraining] = useState(false);
   const [intervalId, setIntervalID] = useState(0);
 
-  let socket = useRef(null);
   const cameraRef = useRef(null);
 
-  useEffect(
-    function didMount() {
-      socket.current = io(ENDPOINT, {
-        transports: ["websocket"],
-      });
-
-      socket.current.on("connect", () => {
-        console.log("connected");
-        setConnection(true);
-      });
-
-      socket.current.on("detectedLabel", (label) => {
-        setDetectedLabel(label);
-      });
-
-      socket.current.io.on("close", () => setConnection(false));
-
-      socket.current.on("disconnect", () => {
-        setConnection(false);
-      });
-
-      return function didUnmount() {
-        socket.current.disconnect();
-        socket.current.removeAllListeners();
-      };
-    },
-    [ENDPOINT]
-  );
-
   useEffect(() => {
-    console.log("intervalId", intervalId);
+    // console.log("intervalId", intervalId);
     if (!cameraReady) {
       console.log("camera not ready");
       return;
@@ -114,23 +84,33 @@ export default function App() {
     const resizedPic = await manipulateAsync(
       pic.uri,
       [{ resize: { width: 244, height: 244 } }],
-      { compress: 1, format: SaveFormat.JPEG, base64: true }
+      { compress: 0.4, format: SaveFormat.JPEG, base64: true }
     );
 
-    console.log("HAS CONNECTION", hasConnection);
+    const payload = {
+      uri: pic.uri,
+      data: resizedPic.base64,
+      height: resizedPic.height,
+      width: resizedPic.width,
+      label,
+      stage: training ? "training" : "querying",
+    };
 
-    hasConnection &&
-      socket.current.emit("picture", {
-        uri: pic.uri,
-        data: resizedPic.base64,
-        height: resizedPic.height,
-        width: resizedPic.width,
-        label,
-        stage: training ? "training" : "querying",
+    try {
+      const result = await fetch(`${ENDPOINT}/api/image`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
-    hasConnection &&
-      console.log("sending picture", resizedPic.width, resizedPic.height);
+      const { label } = await result.json();
+      setDetectedLabel(label);
+    } catch (e) {
+      console.log("Failed", e);
+    }
   }
 
   function toggleRecording() {
@@ -154,46 +134,55 @@ export default function App() {
         >
           <View style={styles.controls}>
             {training && (
-              <TextInput
-                value={label}
-                onChangeText={(label) => setLabel(label)}
-                placeholder={"Label"}
-                style={styles.input}
-              />
+              <>
+                <Text style={{ padding: 10, color: "white", fontSize: 14 }}>
+                  Set the label and click the record button to start training
+                </Text>
+                <TextInput
+                  value={label}
+                  onChangeText={(label) => setLabel(label)}
+                  placeholder={"Label"}
+                  style={styles.input}
+                />
+              </>
             )}
           </View>
-          <Text style={styles.detectedLabel}>
-            {hasConnection
-              ? detectedLabel
+          {!training && (
+            <Text style={styles.detectedLabel}>
+              {detectedLabel
                 ? detectedLabel
                 : training
                 ? "Training"
-                : "Unknown"
-              : ""}
-          </Text>
+                : "Unknown"}
+            </Text>
+          )}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.button}
-              onPress={() => toggleRecording()}
-              disabled={!hasConnection}
+              // onPress={() => toggleRecording()}
             >
-              <Text
-                style={{
-                  ...styles.text,
-                  color: recording ? "red" : hasConnection ? "white" : "grey",
-                }}
-              >
-                Rec
+              <IconButton
+                icon="record-circle"
+                color={recording ? "red" : "white"}
+                size={50}
+                onPress={() => toggleRecording()}
+              ></IconButton>
+              <Text style={{ padding: 10, color: "white", fontSize: 18 }}>
+                {training ? "Training" : "Detecting"}
               </Text>
               <Switch
                 value={training}
                 onValueChange={(value) => setTraining(value)}
+                label="Training"
               />
-              <Text style={{ fontSize: 10, color: "white" }}>
-                {hasConnection ? "Connected" : "Disconnected"}
+              <Text style={{ padding: 10, color: "white", fontSize: 12 }}>
+                Click to switch between detection and training
               </Text>
             </TouchableOpacity>
           </View>
+          {/* <View style={styles.buttonContainer}>
+
+          </View> */}
         </Camera>
       }
     </View>
@@ -239,8 +228,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     flexDirection: "column",
-    width: 250,
-    height: 44,
+    width: "90%",
+    fontSize: 24,
     padding: 10,
     marginTop: 20,
     marginBottom: 10,
