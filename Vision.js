@@ -7,23 +7,27 @@ import {
   TouchableOpacity,
   View,
   TextInput,
+  Modal,
 } from "react-native";
 import { manipulateAsync, FlipType, SaveFormat } from "expo-image-manipulator";
 import IconButton from "./components/IconButton";
 import { Switch } from "@rneui/themed";
-import { ENDPOINT } from "@env";
+// import { ENDPOINT } from "@env";
+const ENDPOINT = "http://192.168.86.250:8080";
 
-export default function Vision() {
-  console.log("ENDPOINT", ENDPOINT);
+export default function Vision({ user }) {
+  console.log("user", user);
   const [type, setType] = useState(CameraType.back);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [detectedLabel, setDetectedLabel] = useState(null);
-  const interval = 2000;
+  const interval = 1000;
   const [label, setLabel] = useState(null);
   const [training, setTraining] = useState(false);
   const [intervalId, setIntervalID] = useState(0);
+  const [confidence, setConfidence] = useState(null);
+  const [modalVisible, setModalVisible] = useState(true);
 
   const cameraRef = useRef(null);
 
@@ -90,6 +94,7 @@ export default function Vision() {
       height: resizedPic.height,
       width: resizedPic.width,
       label,
+      user,
       stage: training ? "training" : "querying",
     };
 
@@ -103,8 +108,9 @@ export default function Vision() {
         body: JSON.stringify(payload),
       });
 
-      const { label } = await result.json();
+      const { label, confidence: score } = await result.json();
       setDetectedLabel(label);
+      setConfidence(Math.round(score.toFixed(2) * 100));
     } catch (e) {
       console.log("Failed", e);
     }
@@ -145,13 +151,22 @@ export default function Vision() {
             )}
           </View>
           {!training && (
-            <Text style={styles.detectedLabel}>
-              {detectedLabel
-                ? detectedLabel
-                : training
-                ? "Training"
-                : "Unknown"}
-            </Text>
+            <View style={styles.detectedLabelWrapper}>
+              <Text style={styles.detectedLabel}>
+                {detectedLabel
+                  ? detectedLabel
+                  : training
+                  ? "Training"
+                  : "Unknown"}
+              </Text>
+              <Text style={styles.confidence}>
+                {confidence
+                  ? `Confidence: ${confidence}%`
+                  : training
+                  ? "Training"
+                  : ""}
+              </Text>
+            </View>
           )}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
@@ -165,7 +180,7 @@ export default function Vision() {
                 onPress={() => toggleRecording()}
               ></IconButton>
               <Text style={{ padding: 10, color: "white", fontSize: 18 }}>
-                {training ? "Training" : "Detecting"}
+                {training ? "Training Mode" : "Detection Mode"}
               </Text>
               <Switch
                 value={training}
@@ -180,6 +195,37 @@ export default function Vision() {
           {/* <View style={styles.buttonContainer}>
 
           </View> */}
+
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={modalVisible}
+          >
+            <View style={styles.centeredView}>
+              <View style={styles.modalView}>
+                <Text style={styles.modalTitle}>
+                  Welcome to Pinecone Vision.
+                </Text>
+                <Text style={styles.modalText}>
+                  To get started, click the switch at the bottom of the screen
+                  to put the camera in "training" mode. Then, set the label and
+                  click the record button to start training. Once you have
+                  enough training data, click the switch again to put the camera
+                  in "detection" mode. Then, point the camera at an object and
+                  watch the magic happen! Try it on objects, rooms and even
+                  people!
+                </Text>
+
+                <Button
+                  style={styles.textStyle}
+                  title="Get Started"
+                  onPress={() => {
+                    setModalVisible(false);
+                  }}
+                ></Button>
+              </View>
+            </View>
+          </Modal>
         </Camera>
       }
     </View>
@@ -190,6 +236,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
+    widht: "100%",
   },
   camera: {
     flex: 1,
@@ -203,10 +250,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  detectedLabel: {
-    flex: 1,
+  detectedLabelWrapper: {
+    height: 100,
+    marginTop: -100,
     alignContent: "center",
     fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
+    textAlign: "center",
+  },
+  detectedLabel: {
+    alignContent: "center",
+    fontWeight: "bold",
+    color: "white",
+    textAlign: "center",
+    fontSize: 24,
+    marginBottom: 10,
+  },
+  confidence: {
+    flex: 1,
+    alignContent: "center",
+    fontSize: 12,
     fontWeight: "bold",
     color: "white",
     textAlign: "center",
@@ -237,5 +301,41 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "white",
     marginBottom: 20,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalView: {
+    width: "90%",
+    height: 270,
+    backgroundColor: "white",
+    borderRadius: 5,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    padding: 30,
+  },
+  textStyle: {
+    color: "black",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: "left",
   },
 });
