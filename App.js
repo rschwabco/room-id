@@ -1,14 +1,26 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import { StyleSheet, View, Text } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import * as Network from "expo-network";
 
 import Vision from "./Vision";
 
 export default function App() {
   const [credential, setCredential] = useState(null);
+  const [connected, setConnected] = useState(true);
+  const checkConnection = async () => {
+    const { isConnected } = await Network.getNetworkStateAsync();
+    if (!isConnected) {
+      console.log("not connected");
+    }
+    setConnected(isConnected);
+  };
+
+  setInterval(checkConnection, 1000);
+
   return (
     <View style={{ flex: 1 }}>
-      {credential ? (
+      {credential && connected ? (
         <Vision user={credential.user || true} />
       ) : (
         <View style={styles.buttonContainer}>
@@ -48,6 +60,14 @@ export default function App() {
               }
             }}
           />
+        </View>
+      )}
+
+      {!connected && (
+        <View style={styles.buttonContainer}>
+          <Text style={{ fontSize: 40, marginBottom: 20 }}>
+            Cannot connect to server
+          </Text>
         </View>
       )}
     </View>

@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "room-id",
+    "name": "Pinecone Vision",
     "slug": "room-id",
     "privacy": "unlisted",
-    "version": "1.0.2",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,10 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.roieki.roomid"
+      "bundleIdentifier": "com.roieki.roomid",
+      "infoPlist": {
+        "NSAllowsArbitraryLoads": true
+      }
     },
     "android": {
       "adaptiveIcon": {

@@ -9,14 +9,13 @@ import {
   TextInput,
   Modal,
 } from "react-native";
+
 import { manipulateAsync, FlipType, SaveFormat } from "expo-image-manipulator";
 import IconButton from "./components/IconButton";
 import { Switch } from "@rneui/themed";
-// import { ENDPOINT } from "@env";
-const ENDPOINT = "http://192.168.86.250:8080";
+import { ENDPOINT } from "@env";
 
 export default function Vision({ user }) {
-  console.log("user", user);
   const [type, setType] = useState(CameraType.back);
   const [permission, requestPermission] = Camera.useCameraPermissions();
   const [cameraReady, setCameraReady] = useState(false);
@@ -24,10 +23,11 @@ export default function Vision({ user }) {
   const [detectedLabel, setDetectedLabel] = useState(null);
   const interval = 1000;
   const [label, setLabel] = useState(null);
-  const [training, setTraining] = useState(false);
+  const [detecting, setDetecting] = useState(false);
   const [intervalId, setIntervalID] = useState(0);
   const [confidence, setConfidence] = useState(null);
   const [modalVisible, setModalVisible] = useState(true);
+  const [numberOfImages, setNumberOfImages] = useState(0);
 
   const cameraRef = useRef(null);
 
@@ -38,8 +38,7 @@ export default function Vision({ user }) {
     } else {
       console.log("camera ready", recording, intervalId);
       if (recording && !intervalId) {
-        console.log("started", recording, intervalId);
-        setIntervalID(setInterval(takePicture, interval));
+        setIntervalID(setInterval(detectImage, interval));
       } else {
         if (!recording && intervalId) {
           console.log("stopped", recording, intervalId);
@@ -51,12 +50,21 @@ export default function Vision({ user }) {
   }, [recording]);
 
   useEffect(() => {
-    if (training) {
+    if (!label) {
+      setNumberOfImages(0);
+    }
+  }, [label]);
+
+  useEffect(() => {
+    if (!detecting) {
       setDetectedLabel("Training");
+      setRecording(false);
     } else {
       setDetectedLabel("");
+      setNumberOfImages(0);
+      setRecording(true);
     }
-  }, [training]);
+  }, [detecting]);
 
   if (!permission) {
     // Camera permissions are still loading
@@ -75,7 +83,7 @@ export default function Vision({ user }) {
     );
   }
 
-  async function takePicture() {
+  async function detectImage() {
     if (!cameraReady) {
       return;
     }
@@ -88,6 +96,8 @@ export default function Vision({ user }) {
       { compress: 0.4, format: SaveFormat.JPEG, base64: true }
     );
 
+    !detecting && setNumberOfImages((prev) => prev + 1);
+
     const payload = {
       uri: pic.uri,
       data: resizedPic.base64,
@@ -95,7 +105,7 @@ export default function Vision({ user }) {
       width: resizedPic.width,
       label,
       user,
-      stage: training ? "training" : "querying",
+      stage: !detecting ? "training" : "detecting",
     };
 
     try {
@@ -108,9 +118,10 @@ export default function Vision({ user }) {
         body: JSON.stringify(payload),
       });
 
-      const { label, confidence: score } = await result.json();
-      setDetectedLabel(label);
-      setConfidence(Math.round(score.toFixed(2) * 100));
+      const resultJson = await result.json();
+      const { label, confidence: score } = resultJson;
+      label && setDetectedLabel(label);
+      score && setConfidence(Math.round(score.toFixed(2) * 100));
     } catch (e) {
       console.log("Failed", e);
     }
@@ -136,7 +147,7 @@ export default function Vision({ user }) {
           ref={cameraRef}
         >
           <View style={styles.controls}>
-            {training && (
+            {!detecting && (
               <>
                 <Text style={{ padding: 10, color: "white", fontSize: 14 }}>
                   Set the label and click the record button to start training
@@ -147,54 +158,68 @@ export default function Vision({ user }) {
                   placeholder={"Label"}
                   style={styles.input}
                 />
+
+                <Text
+                  style={{
+                    ...styles.confidence,
+                    color: `hsl(140, 100%, ${
+                      numberOfImages < 50 ? numberOfImages + 10 : 60
+                    }%)`,
+                  }}
+                >
+                  {numberOfImages > 0 && `# of samples: ${numberOfImages}`}
+                </Text>
+                {numberOfImages > 50 && (
+                  <Text
+                    style={{
+                      ...styles.confidence,
+                      color: `hsl(140, 100%, 50%)`,
+                    }}
+                  >
+                    Training complete. Train another label or move to detection
+                    mode!
+                  </Text>
+                )}
               </>
             )}
           </View>
-          {!training && (
+          {detecting && (
             <View style={styles.detectedLabelWrapper}>
               <Text style={styles.detectedLabel}>
                 {detectedLabel
                   ? detectedLabel
-                  : training
+                  : !detecting
                   ? "Training"
-                  : "Unknown"}
+                  : "Waiting for detection"}
               </Text>
               <Text style={styles.confidence}>
-                {confidence
-                  ? `Confidence: ${confidence}%`
-                  : training
-                  ? "Training"
-                  : ""}
+                {confidence && `Confidence: ${confidence}%`}
               </Text>
             </View>
           )}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.button}
-              // onPress={() => toggleRecording()}
-            >
-              <IconButton
-                icon="record-circle"
-                color={recording ? "red" : "white"}
-                size={50}
-                onPress={() => toggleRecording()}
-              ></IconButton>
+            <TouchableOpacity style={styles.button}>
+              {!detecting && (
+                <IconButton
+                  icon="record-circle"
+                  color={recording ? "red" : "white"}
+                  size={50}
+                  onPress={() => toggleRecording()}
+                ></IconButton>
+              )}
               <Text style={{ padding: 10, color: "white", fontSize: 18 }}>
-                {training ? "Training Mode" : "Detection Mode"}
+                {detecting ? "Detection Mode" : "Training Mode"}
               </Text>
               <Switch
-                value={training}
-                onValueChange={(value) => setTraining(value)}
-                label="Training"
+                value={detecting}
+                onValueChange={(value) => setDetecting(value)}
+                label="Detecting"
               />
               <Text style={{ padding: 10, color: "white", fontSize: 12 }}>
-                Click to switch between detection and training
+                Click to switch between training and detection
               </Text>
             </TouchableOpacity>
           </View>
-          {/* <View style={styles.buttonContainer}>
-
-          </View> */}
 
           <Modal
             animationType="slide"
@@ -207,13 +232,11 @@ export default function Vision({ user }) {
                   Welcome to Pinecone Vision.
                 </Text>
                 <Text style={styles.modalText}>
-                  To get started, click the switch at the bottom of the screen
-                  to put the camera in "training" mode. Then, set the label and
-                  click the record button to start training. Once you have
-                  enough training data, click the switch again to put the camera
-                  in "detection" mode. Then, point the camera at an object and
-                  watch the magic happen! Try it on objects, rooms and even
-                  people!
+                  To get started, set a label and click the record button to
+                  start training. Once you have enough training data, click the
+                  switch again to put the camera in "detection" mode. Then,
+                  point the camera at an object and watch the magic happen! Try
+                  it on objects, rooms and even people!
                 </Text>
 
                 <Button
@@ -236,7 +259,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    widht: "100%",
+    width: "100%",
   },
   camera: {
     flex: 1,
